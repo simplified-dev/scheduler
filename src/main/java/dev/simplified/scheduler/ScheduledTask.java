@@ -2,7 +2,6 @@ package dev.simplified.scheduler;
 
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.extern.log4j.Log4j2;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Range;
 
@@ -32,7 +31,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * @see Scheduler
  */
 @Getter
-@Log4j2
 public final class ScheduledTask implements Runnable {
 
     /** Global counter used to assign a unique id to every {@code ScheduledTask}. */
@@ -236,7 +234,6 @@ public final class ScheduledTask implements Runnable {
             this.consecutiveErrors.set(0);
         } catch (Exception ex) {
             this.consecutiveErrors.incrementAndGet();
-            log.error("Task {} failed: {}", this.id, ex.getMessage(), ex);
         } finally {
             this.running = false;
         }
