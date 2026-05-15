@@ -33,16 +33,24 @@ import java.util.concurrent.atomic.AtomicLong;
 @Getter
 public final class ScheduledTask implements Runnable {
 
-    /** Global counter used to assign a unique id to every {@code ScheduledTask}. */
+    /**
+     * Global counter used to assign a unique id to every {@code ScheduledTask}.
+     */
     private static final AtomicLong currentId = new AtomicLong(1);
 
-    /** Epoch millisecond timestamp recorded when this task was created. */
+    /**
+     * Epoch millisecond timestamp recorded when this task was created.
+     */
     private final long addedTime = System.currentTimeMillis();
 
-    /** Unique identifier for this task, assigned from {@link #currentId}. */
+    /**
+     * Unique identifier for this task, assigned from {@link #currentId}.
+     */
     private final long id;
 
-    /** The delay before the first execution, expressed in {@link #timeUnit}. */
+    /**
+     * The delay before the first execution, expressed in {@link #timeUnit}.
+     */
     private final long initialDelay;
 
     /**
@@ -51,16 +59,24 @@ public final class ScheduledTask implements Runnable {
      */
     private final long period;
 
-    /** The time unit for both {@link #initialDelay} and {@link #period}. */
+    /**
+     * The time unit for both {@link #initialDelay} and {@link #period}.
+     */
     private final @NotNull TimeUnit timeUnit;
 
-    /** {@code true} while the task's {@link Runnable} is actively executing. */
+    /**
+     * {@code true} while the task's {@link Runnable} is actively executing.
+     */
     private volatile boolean running;
 
-    /** {@code true} if this task was scheduled with a positive {@link #period}. */
+    /**
+     * {@code true} if this task was scheduled with a positive {@link #period}.
+     */
     private volatile boolean repeating;
 
-    /** {@code true} after {@link #cancel()} has been called on this task. */
+    /**
+     * {@code true} after {@link #cancel()} has been called on this task.
+     */
     @Getter(AccessLevel.NONE)
     private volatile boolean cancelled;
 
@@ -70,7 +86,9 @@ public final class ScheduledTask implements Runnable {
      */
     private AtomicInteger consecutiveErrors = new AtomicInteger(0);
 
-    /** {@code true} when this task manages its own delay and repeat via {@link TimeUnit#sleep}. */
+    /**
+     * {@code true} when this task manages its own delay and repeat via {@link TimeUnit#sleep}.
+     */
     @Getter(AccessLevel.NONE)
     private final boolean async;
 

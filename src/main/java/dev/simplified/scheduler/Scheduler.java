@@ -37,16 +37,24 @@ import java.util.concurrent.TimeUnit;
  */
 public final class Scheduler implements Executor {
 
-    /** Single-threaded executor for synchronous (serial) task scheduling. */
+    /**
+     * Single-threaded executor for synchronous (serial) task scheduling.
+     */
     private final @NotNull ScheduledExecutorService syncExecutor;
 
-    /** Virtual-thread executor for all asynchronous tasks. */
+    /**
+     * Virtual-thread executor for all asynchronous tasks.
+     */
     private final @NotNull ExecutorService virtualExecutor;
 
-    /** All user-submitted tasks tracked by this scheduler. */
+    /**
+     * All user-submitted tasks tracked by this scheduler.
+     */
     private final @NotNull ConcurrentList<ScheduledTask> tasks = Concurrent.newList();
 
-    /** Internal cleaner task that periodically removes completed tasks from {@link #tasks}. */
+    /**
+     * Internal cleaner task that periodically removes completed tasks from {@link #tasks}.
+     */
     private final @NotNull ScheduledTask cleanerTask;
 
     /**
