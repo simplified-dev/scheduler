@@ -66,7 +66,7 @@ git checkout -b feature/your-feature-name
 ### Code Style
 
 - Follow standard **Java conventions** (Oracle/Google style).
-- Use **Lombok** annotations where appropriate to reduce boilerplate (`@Getter`, `@RequiredArgsConstructor`, etc.).
+- Use **Simplified Annotations** where appropriate to reduce boilerplate (`@Getter`, `@RequiredArgsConstructor`, etc.).
 - Use **JetBrains annotations** (`@NotNull`, `@Nullable`) on public API parameters and return types.
 - Write **Javadoc** on all public classes and methods.
 - Prefer immutability and thread-safe collections where applicable.

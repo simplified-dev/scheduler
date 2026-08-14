@@ -1,7 +1,7 @@
 package dev.simplified.scheduler;
 
-import lombok.AccessLevel;
-import lombok.Getter;
+import dev.simplified.annotations.AccessLevel;
+import dev.simplified.annotations.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Range;
 

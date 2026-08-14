@@ -19,7 +19,7 @@ repositories {
 
 dependencies {
     // Simplified Collections
-    api("com.github.simplified-dev:collections") { version { strictly("7699a31") } }
+    api("com.github.simplified-dev:collections") { version { strictly("23f01b6") } }
 
     // JetBrains Annotations
     api(libs.annotations)
@@ -27,11 +27,11 @@ dependencies {
     // Logging
     api(libs.log4j2.api)
 
-    // Lombok Annotations
-    compileOnly(libs.lombok)
-    annotationProcessor(libs.lombok)
-    testCompileOnly(libs.lombok)
-    testAnnotationProcessor(libs.lombok)
+    // Simplified Annotations
+    compileOnly(libs.simplified.annotations)
+    annotationProcessor(libs.simplified.annotations)
+    testCompileOnly(libs.simplified.annotations)
+    testAnnotationProcessor(libs.simplified.annotations)
 
     // Tests
     testImplementation(libs.hamcrest)
