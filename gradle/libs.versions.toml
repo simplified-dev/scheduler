@@ -1,5 +1,5 @@
 [versions]
-simplified-annotations = "2.5.1"
+simplified-annotations = "2.6.0"
 annotations = "26.0.2"
 log4j2 = "2.25.3"
 junit-jupiter = "5.11.4"
