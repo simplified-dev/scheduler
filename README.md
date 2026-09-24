@@ -29,7 +29,7 @@ A dual-executor task scheduler for Java 21 that supports both synchronous (`Sche
 - **Cancellation support** - Cancel tasks by reference or by ID, with optional thread interruption
 - **Automatic cleanup** - Background cleaner purges completed tasks from the internal list every 30 seconds
 - **Executor contract** - Implements `java.util.concurrent.Executor`, so the scheduler can be passed anywhere an `Executor` is expected
-- **Error tracking** - Consecutive execution errors are counted per task and reset on success
+- **Error tracking** - Failed executions are logged and counted per task, and the count resets on success; a thrown `Error` ends the task
 - **Thread leak detection** - Static `leakedThreads()` utility for diagnosing non-daemon threads after shutdown
 
 ## Getting Started
@@ -144,7 +144,9 @@ scheduler.isTerminated();  // both executors terminated?
 ```
 
 > [!NOTE]
-> A JVM shutdown hook is registered automatically to call `shutdown()` on the scheduler.
+> A JVM shutdown hook calls `shutdown()` at exit, so an explicit call is optional. An explicit
+> `shutdown()` cancels every task, interrupts running ones and removes the hook, so a scheduler
+> shut down on purpose can be garbage collected.
 
 ## Architecture
 
@@ -198,7 +200,7 @@ Each `ScheduledTask` is assigned a monotonically increasing ID at creation time 
 | `repeatAsync(Runnable)` | Convenience: async, no delay, 50ms period |
 | `cancel(id)` / `cancel(task)` | Cancel a task by ID or reference |
 | `getTasks()` | Unmodifiable snapshot of tracked tasks |
-| `shutdown()` | Orderly shutdown of both executors |
+| `shutdown()` | Cancels every task, stops both executors and removes the shutdown hook |
 | `execute(Runnable)` | `Executor` contract - delegates to virtual thread executor |
 | `sleep(millis)` | Static utility - `Thread.sleep` with swallowed `InterruptedException` |
 | `leakedThreads()` | Static utility - non-daemon threads still alive (filters JVM/Gradle internals) |

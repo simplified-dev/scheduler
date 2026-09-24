@@ -2,6 +2,7 @@ package dev.simplified.scheduler;
 
 import dev.simplified.annotations.AccessLevel;
 import dev.simplified.annotations.Getter;
+import dev.simplified.annotations.Log;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Range;
 
@@ -26,10 +27,13 @@ import java.util.concurrent.atomic.AtomicLong;
  * waits so that no platform resources are consumed while idle.
  * <p>
  * Execution errors are caught, logged, and tracked via {@link #getConsecutiveErrors()}; the
- * counter resets to zero after every successful execution.
+ * counter resets to zero after every successful execution. A repeating task keeps repeating
+ * through a thrown {@link Exception}. A thrown {@link Error} is counted and logged too, then
+ * rethrown, which ends a repeating task.
  *
  * @see Scheduler
  */
+@Log
 @Getter
 public final class ScheduledTask implements Runnable {
 
@@ -242,8 +246,11 @@ public final class ScheduledTask implements Runnable {
 
     /**
      * Executes the wrapped {@link Runnable}, tracking the {@link #running} state and
-     * logging any exceptions. On success the {@link #consecutiveErrors} counter is
-     * reset to zero; on failure it is incremented.
+     * logging any failure. On success the {@link #consecutiveErrors} counter is reset to
+     * zero; on failure it is incremented. An {@link Exception} is swallowed after logging,
+     * while an {@link Error} is rethrown, ending the task.
+     *
+     * @throws Error if the wrapped task throws one
      */
     private void executeTask() {
         try {
@@ -251,7 +258,10 @@ public final class ScheduledTask implements Runnable {
             this.runnableTask.run();
             this.consecutiveErrors.set(0);
         } catch (Exception ex) {
-            this.consecutiveErrors.incrementAndGet();
+            log.error("Scheduled task {} failed ({} consecutive)", this.id, this.consecutiveErrors.incrementAndGet(), ex);
+        } catch (Error error) {
+            log.error("Scheduled task {} failed with an Error and stops ({} consecutive)", this.id, this.consecutiveErrors.incrementAndGet(), error);
+            throw error;
         } finally {
             this.running = false;
         }
