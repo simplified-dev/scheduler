@@ -173,12 +173,12 @@ Each `ScheduledTask` is assigned a monotonically increasing ID at creation time 
 | State | Description |
 |-------|-------------|
 | `running` | The task's `Runnable` is actively executing |
-| `repeating` | The task was scheduled with a positive repeat delay |
+| `repeating` | The task was scheduled with a positive repeat delay, and has neither been cancelled nor ended on an `Error` |
 | `cancelled` | `cancel()` has been called |
-| `done` | Completed normally, cancelled, or failed (one-shot) |
+| `done` | Completed normally, cancelled, or failed (a one-shot task on any throw, a repeating task on an `Error`) |
 
 > [!TIP]
-> Use `getConsecutiveErrors()` to monitor task health. The counter resets to zero after each successful execution and increments on each caught exception.
+> Use `getConsecutiveErrors()` to monitor task health. The counter resets to zero after each successful execution and increments on each failed one, whether it threw an `Exception` or an `Error`.
 
 ## API Overview
 

@@ -74,7 +74,8 @@ public final class ScheduledTask implements Runnable {
     private volatile boolean running;
 
     /**
-     * {@code true} if this task was scheduled with a positive {@link #period}.
+     * {@code true} while this task repeats - set by a positive {@link #period}, cleared when the
+     * task is cancelled or ends on an {@link Error}.
      */
     private volatile boolean repeating;
 
@@ -86,7 +87,8 @@ public final class ScheduledTask implements Runnable {
 
     /**
      * Rolling count of consecutive execution failures. Reset to zero after each
-     * successful execution; incremented on each caught exception.
+     * successful execution; incremented on each failed one, whether it threw an
+     * {@link Exception} or an {@link Error}.
      */
     private AtomicInteger consecutiveErrors = new AtomicInteger(0);
 
@@ -190,8 +192,8 @@ public final class ScheduledTask implements Runnable {
     }
 
     /**
-     * Returns whether this task has completed, either normally, via cancellation, or
-     * due to an exception (for one-shot tasks).
+     * Returns whether this task has completed, either normally, via cancellation, or by
+     * failing - a one-shot task on any throw, a repeating task on an {@link Error}.
      *
      * @return {@code true} if the task is done or has been cancelled
      */
@@ -248,7 +250,7 @@ public final class ScheduledTask implements Runnable {
      * Executes the wrapped {@link Runnable}, tracking the {@link #running} state and
      * logging any failure. On success the {@link #consecutiveErrors} counter is reset to
      * zero; on failure it is incremented. An {@link Exception} is swallowed after logging,
-     * while an {@link Error} is rethrown, ending the task.
+     * while an {@link Error} clears {@link #repeating} and is rethrown, ending the task.
      *
      * @throws Error if the wrapped task throws one
      */
@@ -260,6 +262,7 @@ public final class ScheduledTask implements Runnable {
         } catch (Exception ex) {
             log.error("Scheduled task {} failed ({} consecutive)", this.id, this.consecutiveErrors.incrementAndGet(), ex);
         } catch (Error error) {
+            this.repeating = false;
             log.error("Scheduled task {} failed with an Error and stops ({} consecutive)", this.id, this.consecutiveErrors.incrementAndGet(), error);
             throw error;
         } finally {

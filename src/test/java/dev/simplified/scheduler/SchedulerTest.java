@@ -249,6 +249,7 @@ class SchedulerTest {
             awaitDone(task);
             assertEquals(1, callCount.get());
             assertEquals(1, task.getConsecutiveErrors().get());
+            assertFalse(task.isRepeating());
         }
 
         @Test
@@ -262,6 +263,7 @@ class SchedulerTest {
             awaitDone(task);
             assertEquals(1, callCount.get());
             assertEquals(1, task.getConsecutiveErrors().get());
+            assertFalse(task.isRepeating());
         }
 
         private void awaitDone(ScheduledTask task) throws InterruptedException {
