@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -194,7 +197,8 @@ class SchedulerTest {
 
         @Test
         void taskException_incrementsConsecutiveErrors() throws Exception {
-            CountDownLatch latch = new CountDownLatch(3);
+            // The fourth call starts only after the third has failed and been counted
+            CountDownLatch latch = new CountDownLatch(4);
             ScheduledTask task = scheduler.schedule(() -> {
                 latch.countDown();
                 throw new RuntimeException("test error");
@@ -205,19 +209,128 @@ class SchedulerTest {
         }
 
         @Test
+        void asyncTaskException_keepsRepeating() throws Exception {
+            // The fourth call starts only after the third has failed and been counted
+            CountDownLatch latch = new CountDownLatch(4);
+            ScheduledTask task = scheduler.scheduleAsync(() -> {
+                latch.countDown();
+                throw new RuntimeException("test error");
+            }, 0, 50);
+
+            assertTrue(latch.await(2, TimeUnit.SECONDS));
+            assertTrue(task.getConsecutiveErrors().get() >= 3);
+            assertTrue(task.isRepeating());
+        }
+
+        @Test
         void taskSuccess_resetsConsecutiveErrors() throws Exception {
             AtomicInteger callCount = new AtomicInteger(0);
             CountDownLatch latch = new CountDownLatch(4);
-            scheduler.schedule(() -> {
+            ScheduledTask task = scheduler.schedule(() -> {
                 int count = callCount.incrementAndGet();
                 latch.countDown();
                 if (count <= 2) throw new RuntimeException("fail");
                 // Succeeds on call 3+
             }, 0, 50);
 
+            // The fourth call starts only after the third, the first success, has reset the counter
             assertTrue(latch.await(2, TimeUnit.SECONDS));
-            // After a success, errors should reset to 0
-            Thread.sleep(100);
+            assertEquals(0, task.getConsecutiveErrors().get());
+        }
+
+        @Test
+        void taskError_endsRepeatingTask() throws Exception {
+            AtomicInteger callCount = new AtomicInteger(0);
+            ScheduledTask task = scheduler.schedule(() -> {
+                callCount.incrementAndGet();
+                throw new Error("test error");
+            }, 0, 50);
+
+            awaitDone(task);
+            assertEquals(1, callCount.get());
+            assertEquals(1, task.getConsecutiveErrors().get());
+            assertFalse(task.isRepeating());
+        }
+
+        @Test
+        void asyncTaskError_endsRepeatingTask() throws Exception {
+            AtomicInteger callCount = new AtomicInteger(0);
+            ScheduledTask task = scheduler.scheduleAsync(() -> {
+                callCount.incrementAndGet();
+                throw new Error("test error");
+            }, 0, 50);
+
+            awaitDone(task);
+            assertEquals(1, callCount.get());
+            assertEquals(1, task.getConsecutiveErrors().get());
+            assertFalse(task.isRepeating());
+        }
+
+        private void awaitDone(ScheduledTask task) throws InterruptedException {
+            long start = System.currentTimeMillis();
+            while (!task.isDone() && System.currentTimeMillis() - start < 5_000)
+                Thread.sleep(10);
+
+            assertTrue(task.isDone(), "Task was still scheduled 5 seconds after an Error");
+        }
+    }
+
+    @Nested
+    class ExplicitShutdown {
+
+        @Test
+        void shutdown_twice_isSafe() {
+            scheduler.schedule(() -> {}, 0, 50);
+            scheduler.shutdown();
+            assertDoesNotThrow(scheduler::shutdown);
+            assertTrue(scheduler.isShutdown());
+        }
+
+        @Test
+        void shutdown_clearsTasks() {
+            scheduler.schedule(() -> {}, 10_000);
+            scheduler.scheduleAsync(() -> {}, 0, 50);
+            assertEquals(2, scheduler.getTasks().size());
+
+            scheduler.shutdown();
+            assertTrue(scheduler.getTasks().isEmpty());
+        }
+
+        @Test
+        void shutdown_releasesScheduler() throws Exception {
+            ReferenceQueue<Scheduler> queue = new ReferenceQueue<>();
+            WeakReference<Scheduler> reference = shutDownDetached(queue);
+            Reference<? extends Scheduler> collected = null;
+
+            // At most 50 collections, each followed by a 100ms wait for the reference to enqueue
+            for (int attempt = 0; attempt < 50 && collected == null; attempt++) {
+                System.gc();
+                collected = queue.remove(100);
+            }
+
+            assertSame(reference, collected, "A scheduler shut down explicitly is still reachable");
+        }
+
+        /**
+         * Builds a scheduler with running tasks, shuts it down and waits for it to terminate,
+         * handing back only a weak reference so no strong one outlives this frame.
+         *
+         * @param queue the queue the reference enqueues on once the scheduler is collected
+         * @return a weak reference to the terminated scheduler
+         * @throws InterruptedException if interrupted while waiting for termination
+         */
+        private WeakReference<Scheduler> shutDownDetached(ReferenceQueue<Scheduler> queue) throws InterruptedException {
+            Scheduler detached = new Scheduler();
+            detached.schedule(() -> {}, 0, 50);
+            detached.scheduleAsync(() -> {}, 0, 50);
+            detached.shutdown();
+
+            long start = System.currentTimeMillis();
+            while (!detached.isTerminated() && System.currentTimeMillis() - start < 5_000)
+                Thread.sleep(50);
+
+            assertTrue(detached.isTerminated(), "Scheduler did not terminate within 5 seconds after shutdown()");
+            return new WeakReference<>(detached, queue);
         }
     }
 

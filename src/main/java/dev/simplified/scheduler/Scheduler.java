@@ -29,6 +29,10 @@ import java.util.concurrent.TimeUnit;
  * A background cleaner task runs on the sync executor every 30 seconds to purge completed
  * tasks from the internal task list. The cleaner is cancelled automatically on {@link #shutdown()}.
  * <p>
+ * A JVM shutdown hook shuts the scheduler down at exit, so calling {@link #shutdown()} is
+ * optional. An explicit shutdown removes the hook, so a scheduler shut down on purpose can be
+ * garbage collected once its caller drops it.
+ * <p>
  * The {@link Executor} contract is implemented by delegating {@link #execute(Runnable)} to
  * the virtual thread executor, so this scheduler can be passed anywhere an {@code Executor}
  * is expected.
@@ -58,8 +62,13 @@ public final class Scheduler implements Executor {
     private final @NotNull ScheduledTask cleanerTask;
 
     /**
+     * JVM shutdown hook that shuts this scheduler down at exit, removed by {@link #shutdown()}.
+     */
+    private final @NotNull Thread shutdownHook;
+
+    /**
      * Creates a new scheduler with a single-threaded sync executor and a virtual-thread
-     * async executor.
+     * async executor, and registers a JVM shutdown hook that shuts it down at exit.
      */
     public Scheduler() {
         this.syncExecutor = Executors.newSingleThreadScheduledExecutor(runnable -> {
@@ -80,7 +89,8 @@ public final class Scheduler implements Executor {
             false
         );
 
-        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown, "scheduler-shutdown"));
+        this.shutdownHook = new Thread(this::shutdown, "scheduler-shutdown");
+        Runtime.getRuntime().addShutdownHook(this.shutdownHook);
     }
 
     /**
@@ -319,11 +329,13 @@ public final class Scheduler implements Executor {
     }
 
     /**
-     * Initiates an orderly shutdown of this scheduler.
+     * Shuts this scheduler down, cancelling every task and interrupting any running execution.
      * <p>
-     * The internal cleaner task is cancelled first, then both executors (sync and virtual)
-     * are shut down. Previously submitted tasks will still run to completion, but no new
-     * tasks will be accepted.
+     * The internal cleaner task and every tracked task are cancelled, both executors (sync and
+     * virtual) are shut down immediately so no new tasks are accepted, and the task list is
+     * cleared. The JVM shutdown hook is then removed, so the JVM no longer holds this
+     * scheduler. Calling it again has no further effect, and a call made while the JVM is
+     * already exiting leaves the hook to the JVM.
      *
      * @see #isShutdown()
      * @see #isTerminated()
@@ -333,6 +345,11 @@ public final class Scheduler implements Executor {
         this.tasks.forEach(task -> task.cancel(true));
         this.syncExecutor.shutdownNow();
         this.virtualExecutor.shutdownNow();
+        this.tasks.clear();
+
+        try {
+            Runtime.getRuntime().removeShutdownHook(this.shutdownHook);
+        } catch (IllegalStateException ignore) { }
     }
 
     /**

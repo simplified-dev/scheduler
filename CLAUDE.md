@@ -12,4 +12,4 @@ Dual-executor task scheduler with sync (ScheduledExecutorService) and async (vir
 ## Key Patterns
 - Sync tasks run on `ScheduledExecutorService.scheduleWithFixedDelay`; async tasks self-schedule via `TimeUnit.sleep` on virtual threads.
 - An internal repeating task purges done tasks every 30s.
-- A shutdown hook is registered in the `Scheduler` constructor.
+- A shutdown hook is registered in the `Scheduler` constructor and removed by an explicit `shutdown()`.
